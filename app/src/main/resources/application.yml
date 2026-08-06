@@ -1,0 +1,45 @@
+server:
+  port: 8080
+  shutdown: graceful
+
+spring:
+  application:
+    name: sandbox-java26
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: jdbc:postgresql://localhost:5432/sandbox
+    username: sandbox
+    password: sandbox
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.sandbox
+
+sandbox:
+  kafka:
+    topics:
+      orders: orders.events
+  llm:
+    provider: mock
+    ollama:
+      base-url: http://localhost:11434
+      model: llama3
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
