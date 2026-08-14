@@ -27,6 +27,13 @@ public class OrderLineJpaEntity {
     protected OrderLineJpaEntity() {
     }
 
+    public OrderLineJpaEntity(String productId, int quantity, BigDecimal unitPrice, String currency) {
+        this.productId = productId;
+        this.quantity = quantity;
+        this.unitPrice = unitPrice;
+        this.currency = currency;
+    }
+
     public String getProductId() {
         return productId;
     }

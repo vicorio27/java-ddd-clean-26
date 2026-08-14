@@ -21,10 +21,28 @@ public class OrderRepositoryAdapter implements OrderRepository {
         this.jpaRepository = jpaRepository;
     }
 
+    /**
+     * La version anterior construia siempre una entidad nueva, de modo que:
+     * la version de @Version volvia a 0 (el optimistic locking anunciado nunca
+     * llegaba a la base de datos) y created_at se reescribia con Instant.now()
+     * en cada actualizacion. Ahora se carga la fila existente y se muta.
+     */
     @Override
     @Transactional
     public Order save(Order order) {
-        return toDomain(jpaRepository.save(toEntity(order)));
+        var entity = jpaRepository.findById(order.id().value())
+                .orElseGet(() -> OrderJpaEntity.newOrder(order.id().value(), order.customerId().value()));
+
+        entity.setStatus(order.status().name());
+        entity.replaceLines(order.lines().stream()
+                .map(line -> new OrderLineJpaEntity(
+                        line.productId(),
+                        line.quantity(),
+                        line.unitPrice().amount(),
+                        line.unitPrice().currency().getCurrencyCode()))
+                .toList());
+
+        return toDomain(jpaRepository.save(entity));
     }
 
     @Override
@@ -33,28 +51,12 @@ public class OrderRepositoryAdapter implements OrderRepository {
         return jpaRepository.findById(id.value()).map(this::toDomain);
     }
 
-    private OrderJpaEntity toEntity(Order order) {
-        var entity = new OrderJpaEntity();
-        entity.setId(order.id().value());
-        entity.setCustomerId(order.customerId().value());
-        entity.setStatus(order.status().name());
-        entity.setLines(order.lines().stream().map(line -> {
-            var lineEntity = new OrderLineJpaEntity();
-            lineEntity.setProductId(line.productId());
-            lineEntity.setQuantity(line.quantity());
-            lineEntity.setUnitPrice(line.unitPrice().amount());
-            lineEntity.setCurrency(line.unitPrice().currency().getCurrencyCode());
-            return lineEntity;
-        }).toList());
-        return entity;
-    }
-
     private Order toDomain(OrderJpaEntity entity) {
         var lines = entity.getLines().stream()
                 .map(line -> new OrderLine(line.getProductId(), line.getQuantity(),
                         Money.of(line.getUnitPrice(), line.getCurrency())))
                 .toList();
         return Order.reconstitute(new OrderId(entity.getId()), new CustomerId(entity.getCustomerId()),
-                lines, OrderStatus.valueOf(entity.getStatus()), 0L);
+                lines, OrderStatus.valueOf(entity.getStatus()), entity.getVersion());
     }
 }

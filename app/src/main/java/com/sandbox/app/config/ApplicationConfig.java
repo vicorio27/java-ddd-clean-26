@@ -3,6 +3,7 @@ package com.sandbox.app.config;
 import com.sandbox.application.usecase.CreateOrderUseCase;
 import com.sandbox.application.usecase.GetOrderDetailsUseCase;
 import com.sandbox.application.usecase.PayOrderUseCase;
+import com.sandbox.application.port.UnitOfWork;
 import com.sandbox.customers.domain.port.CustomerRepository;
 import com.sandbox.orders.domain.port.OrderEventPublisher;
 import com.sandbox.orders.domain.port.OrderRepository;
@@ -27,8 +28,10 @@ public class ApplicationConfig {
     CreateOrderUseCase createOrderUseCase(OrderRepository orderRepository,
                                           CustomerRepository customerRepository,
                                           OrderEventPublisher eventPublisher,
-                                          OrderDomainService orderDomainService) {
-        return new CreateOrderUseCase(orderRepository, customerRepository, eventPublisher, orderDomainService);
+                                          OrderDomainService orderDomainService,
+                                          UnitOfWork unitOfWork) {
+        return new CreateOrderUseCase(orderRepository, customerRepository, eventPublisher,
+                orderDomainService, unitOfWork);
     }
 
     @Bean
@@ -41,7 +44,8 @@ public class ApplicationConfig {
     @Bean
     PayOrderUseCase payOrderUseCase(OrderRepository orderRepository,
                                     PaymentRepository paymentRepository,
-                                    PaymentGateway paymentGateway) {
-        return new PayOrderUseCase(orderRepository, paymentRepository, paymentGateway);
+                                    PaymentGateway paymentGateway,
+                                    UnitOfWork unitOfWork) {
+        return new PayOrderUseCase(orderRepository, paymentRepository, paymentGateway, unitOfWork);
     }
 }

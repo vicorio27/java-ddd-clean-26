@@ -1,0 +1,15 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  kafka:
+    consumer:
+      auto-offset-reset: earliest
+
+sandbox:
+  outbox:
+    poll-interval-ms: 500
+
+logging:
+  level:
+    com.sandbox: DEBUG

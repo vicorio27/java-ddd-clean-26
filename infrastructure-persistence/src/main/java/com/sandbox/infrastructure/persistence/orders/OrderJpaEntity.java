@@ -12,6 +12,7 @@ import jakarta.persistence.Version;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -22,7 +23,7 @@ public class OrderJpaEntity {
     @Id
     private UUID id;
 
-    @Column(name = "customer_id", nullable = false)
+    @Column(name = "customer_id", nullable = false, updatable = false)
     private UUID customerId;
 
     @Column(nullable = false)
@@ -35,8 +36,9 @@ public class OrderJpaEntity {
     @Version
     private long version;
 
-    @Column(name = "created_at", nullable = false)
-    private Instant createdAt = Instant.now();
+    // updatable = false: la fecha de creacion se fija una vez y ningun save posterior la pisa.
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
 
     @Column(name = "deleted", nullable = false)
     private boolean deleted = false;
@@ -44,20 +46,20 @@ public class OrderJpaEntity {
     protected OrderJpaEntity() {
     }
 
+    public static OrderJpaEntity newOrder(UUID id, UUID customerId) {
+        var entity = new OrderJpaEntity();
+        entity.id = id;
+        entity.customerId = customerId;
+        entity.createdAt = Instant.now();
+        return entity;
+    }
+
     public UUID getId() {
         return id;
     }
 
-    public void setId(UUID id) {
-        this.id = id;
-    }
-
     public UUID getCustomerId() {
         return customerId;
-    }
-
-    public void setCustomerId(UUID customerId) {
-        this.customerId = customerId;
     }
 
     public String getStatus() {
@@ -69,10 +71,24 @@ public class OrderJpaEntity {
     }
 
     public List<OrderLineJpaEntity> getLines() {
-        return lines;
+        return List.copyOf(lines);
     }
 
-    public void setLines(List<OrderLineJpaEntity> lines) {
-        this.lines = lines;
+    /** Muta la coleccion existente para no romper orphanRemoval de Hibernate. */
+    public void replaceLines(Collection<OrderLineJpaEntity> newLines) {
+        this.lines.clear();
+        this.lines.addAll(newLines);
+    }
+
+    public long getVersion() {
+        return version;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public boolean isDeleted() {
+        return deleted;
     }
 }

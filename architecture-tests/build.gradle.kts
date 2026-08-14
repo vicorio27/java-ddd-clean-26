@@ -20,4 +20,21 @@ dependencies {
     testImplementation(project(":app"))
 
     testImplementation(libs.archunit.junit5)
+    testImplementation(libs.junit.jupiter)
+    testImplementation(libs.assertj.core)
+    testImplementation(libs.spring.boot.starter.web)
+    testRuntimeOnly(libs.junit.platform.launcher)
+}
+
+// ArchUnit no logra resolver las clases del proyecto por classloader bajo Gradle 9
+// (los modulos llegan como jars y el classpath va en un manifest jar). Se le pasan
+// las rutas de forma explicita y el test filtra las que pertenecen a este repo.
+tasks.test {
+    val rootPath = rootDir.absolutePath
+    val classpath = sourceSets.test.get().runtimeClasspath
+    inputs.files(classpath)
+    doFirst {
+        systemProperty("sandbox.rootDir", rootPath)
+        systemProperty("sandbox.classpath", classpath.asPath)
+    }
 }

@@ -1,6 +1,7 @@
 package com.sandbox.application.usecase;
 
 import com.sandbox.application.command.CreateOrderCommand;
+import com.sandbox.application.port.UnitOfWork;
 import com.sandbox.customers.domain.port.CustomerRepository;
 import com.sandbox.orders.domain.model.Order;
 import com.sandbox.orders.domain.model.OrderLine;
@@ -17,35 +18,45 @@ public class CreateOrderUseCase {
     private final CustomerRepository customerRepository;
     private final OrderEventPublisher eventPublisher;
     private final OrderDomainService orderDomainService;
+    private final UnitOfWork unitOfWork;
 
     public CreateOrderUseCase(OrderRepository orderRepository,
                               CustomerRepository customerRepository,
                               OrderEventPublisher eventPublisher,
-                              OrderDomainService orderDomainService) {
+                              OrderDomainService orderDomainService,
+                              UnitOfWork unitOfWork) {
         this.orderRepository = orderRepository;
         this.customerRepository = customerRepository;
         this.eventPublisher = eventPublisher;
         this.orderDomainService = orderDomainService;
+        this.unitOfWork = unitOfWork;
     }
 
     public Order execute(CreateOrderCommand command) {
         var customerId = CustomerId.of(command.customerId());
-        var customer = customerRepository.findById(customerId)
-                .orElseThrow(() -> new DomainException("Customer not found: " + command.customerId()));
-        if (!customer.canPlaceOrders()) {
-            throw new DomainException("Customer is not allowed to place orders");
-        }
 
-        var lines = command.lines().stream()
-                .map(line -> new OrderLine(line.productId(), line.quantity(),
-                        Money.of(line.unitPrice(), line.currency())))
-                .toList();
+        // La orden y sus eventos entran en el mismo commit. El publisher escribe en la
+        // tabla outbox, no en Kafka: si el broker esta caido la orden se crea igual y
+        // el relay publica despues. Antes eran dos escrituras independientes (dual-write)
+        // y un fallo de Kafka dejaba el evento perdido para siempre.
+        return unitOfWork.execute(() -> {
+            var customer = customerRepository.findById(customerId)
+                    .orElseThrow(() -> new DomainException("Customer not found: " + command.customerId()));
+            if (!customer.canPlaceOrders()) {
+                throw new DomainException("Customer is not allowed to place orders");
+            }
 
-        var order = Order.create(customerId, lines);
-        orderDomainService.assertCanBeCreated(order);
+            var lines = command.lines().stream()
+                    .map(line -> new OrderLine(line.productId(), line.quantity(),
+                            Money.of(line.unitPrice(), line.currency())))
+                    .toList();
 
-        var saved = orderRepository.save(order);
-        saved.pullDomainEvents().forEach(eventPublisher::publish);
-        return saved;
+            var order = Order.create(customerId, lines);
+            orderDomainService.assertCanBeCreated(order);
+
+            var saved = orderRepository.save(order);
+            order.pullDomainEvents().forEach(eventPublisher::publish);
+            return saved;
+        });
     }
 }

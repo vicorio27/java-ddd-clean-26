@@ -37,6 +37,12 @@ public class PaymentRepositoryAdapter implements PaymentRepository {
         return jpaRepository.findByOrderReference(orderReference).map(this::toDomain);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<Payment> findByIdempotencyKey(String idempotencyKey) {
+        return jpaRepository.findByIdempotencyKey(idempotencyKey).map(this::toDomain);
+    }
+
     private PaymentJpaEntity toEntity(Payment payment) {
         var entity = new PaymentJpaEntity();
         entity.setId(payment.id().value());
@@ -44,11 +50,13 @@ public class PaymentRepositoryAdapter implements PaymentRepository {
         entity.setAmount(payment.amount().amount());
         entity.setCurrency(payment.amount().currency().getCurrencyCode());
         entity.setStatus(payment.status().name());
+        entity.setIdempotencyKey(payment.idempotencyKey());
         return entity;
     }
 
     private Payment toDomain(PaymentJpaEntity entity) {
         return Payment.reconstitute(new PaymentId(entity.getId()), entity.getOrderReference(),
-                Money.of(entity.getAmount(), entity.getCurrency()), PaymentStatus.valueOf(entity.getStatus()));
+                Money.of(entity.getAmount(), entity.getCurrency()), entity.getIdempotencyKey(),
+                PaymentStatus.valueOf(entity.getStatus()));
     }
 }

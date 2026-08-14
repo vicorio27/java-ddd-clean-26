@@ -1,6 +1,7 @@
 package com.sandbox.app.api;
 
 import com.sandbox.application.command.CreateOrderCommand;
+import com.sandbox.application.command.PayOrderCommand;
 import com.sandbox.application.usecase.CreateOrderUseCase;
 import com.sandbox.application.usecase.GetOrderDetailsUseCase;
 import com.sandbox.application.usecase.PayOrderUseCase;
@@ -12,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -54,10 +56,17 @@ public class OrderController {
         return getOrderDetailsUseCase.execute(orderId);
     }
 
+    /**
+     * Idempotency-Key es obligatorio: sin el, un reintento del cliente (o del balanceador)
+     * cobraba dos veces al mismo cliente. Repetir la peticion con la misma clave devuelve
+     * el pago ya registrado sin volver a llamar al gateway.
+     */
     @PostMapping("/{orderId}/payments")
-    public ResponseEntity<Void> pay(@PathVariable String orderId) {
-        payOrderUseCase.execute(orderId);
-        return ResponseEntity.status(HttpStatus.ACCEPTED).build();
+    public ResponseEntity<PaymentResponse> pay(@PathVariable String orderId,
+                                               @RequestHeader("Idempotency-Key") @NotBlank String idempotencyKey) {
+        var payment = payOrderUseCase.execute(new PayOrderCommand(orderId, idempotencyKey));
+        return ResponseEntity.status(HttpStatus.ACCEPTED)
+                .body(new PaymentResponse(payment.id().value().toString(), payment.status().name()));
     }
 
     public record CreateOrderRequest(
@@ -73,5 +82,8 @@ public class OrderController {
     }
 
     public record OrderCreatedResponse(String orderId, String status) {
+    }
+
+    public record PaymentResponse(String paymentId, String status) {
     }
 }

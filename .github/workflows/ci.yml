@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    name: Build + reglas de arquitectura
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar JDK 26
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '26'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Excluye :app:test, que necesita Docker y corre en el job de integracion.
+      - name: Compilar y probar
+        run: ./gradlew build -x :app:test --no-daemon
+
+      - name: Reglas de arquitectura (ArchUnit)
+        run: ./gradlew :architecture-tests:test --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: informes-de-test
+          path: '**/build/reports/tests/**'
+
+  integration:
+    name: Integracion (Testcontainers)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar JDK 26
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '26'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Postgres y Kafka reales via Testcontainers; el runner de GitHub ya trae Docker.
+      - name: Ciclo de vida de la orden de punta a punta
+        run: ./gradlew :app:test --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: informes-de-integracion
+          path: 'app/build/reports/tests/**'
