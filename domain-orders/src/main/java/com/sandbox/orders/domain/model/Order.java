@@ -32,7 +32,7 @@ public final class Order extends AggregateRoot {
         }
         var order = new Order(OrderId.newId(), customerId, lines, OrderStatus.CREATED);
         var total = order.total();
-        order.registerEvent(new OrderCreatedEvent(
+        order.registerEvent(OrderCreatedEvent.of(
                 order.id, customerId, total.amount(), total.currency().getCurrencyCode()));
         return order;
     }

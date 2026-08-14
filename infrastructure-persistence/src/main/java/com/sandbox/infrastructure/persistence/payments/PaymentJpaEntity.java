@@ -27,6 +27,9 @@ public class PaymentJpaEntity {
     @Column(nullable = false)
     private String status;
 
+    @Column(name = "idempotency_key", nullable = false, updatable = false)
+    private String idempotencyKey;
+
     protected PaymentJpaEntity() {
     }
 
@@ -68,5 +71,13 @@ public class PaymentJpaEntity {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public String getIdempotencyKey() {
+        return idempotencyKey;
+    }
+
+    public void setIdempotencyKey(String idempotencyKey) {
+        this.idempotencyKey = idempotencyKey;
     }
 }

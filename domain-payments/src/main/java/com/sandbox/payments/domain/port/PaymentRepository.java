@@ -12,4 +12,6 @@ public interface PaymentRepository {
     Optional<Payment> findById(PaymentId id);
 
     Optional<Payment> findByOrderReference(String orderReference);
+
+    Optional<Payment> findByIdempotencyKey(String idempotencyKey);
 }

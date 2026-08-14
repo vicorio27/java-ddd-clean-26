@@ -17,6 +17,8 @@ public class OrderEventsConsumer {
     private static final Logger log = LoggerFactory.getLogger(OrderEventsConsumer.class);
 
     private final NotificationSender notificationSender;
+    // Deduplicacion en memoria: suficiente para una instancia, insuficiente en produccion
+    // (se pierde al reiniciar y no se comparte entre replicas). Ver docs/architecture-guide.md.
     private final Set<String> processedEventIds = ConcurrentHashMap.newKeySet();
 
     public OrderEventsConsumer(NotificationSender notificationSender) {
@@ -24,7 +26,7 @@ public class OrderEventsConsumer {
     }
 
     @KafkaListener(topics = "${sandbox.kafka.topics.orders:orders.events}", groupId = "notifications")
-    public void onOrderEvent(ConsumerRecord<String, Object> record) {
+    public void onOrderEvent(ConsumerRecord<String, String> record) {
         if (!processedEventIds.add(record.key())) {
             log.info("Duplicate event {} ignored (idempotent consumer)", record.key());
             return;

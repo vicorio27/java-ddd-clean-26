@@ -7,6 +7,9 @@ gradle-app.setting
 *.jar
 *.log
 
+# El wrapper es parte del repo: sin el jar, `./gradlew` no funciona en un clone limpio.
+!gradle/wrapper/gradle-wrapper.jar
+
 .idea/
 *.iml
 .vscode/
